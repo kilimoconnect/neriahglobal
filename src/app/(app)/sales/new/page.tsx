@@ -23,7 +23,7 @@ export default async function NewSalePage() {
   }
 
   const [{ data: products }, { data: taxCodes }, { data: accounts }, { data: customers }, { data: bals }] = await Promise.all([
-    admin.from("products").select("id, sku, name, selling_price, tax_code_id, track_inventory").eq("company_id", ctx.companyId).eq("is_active", true).order("sku"),
+    admin.from("products").select("id, sku, name, selling_price, tax_code_id, track_inventory, category:product_categories(name), brand:brands(name)").eq("company_id", ctx.companyId).eq("is_active", true).order("sku"),
     admin.from("tax_codes").select("id, name, rate, is_inclusive").eq("company_id", ctx.companyId).eq("is_active", true).order("code"),
     admin.from("payment_accounts").select("id, code, name, branch_id").eq("company_id", ctx.companyId).eq("is_active", true).order("code"),
     admin.from("customers").select("id, code, name, is_protected").eq("company_id", ctx.companyId).eq("is_active", true).order("code"),
@@ -34,13 +34,17 @@ export default async function NewSalePage() {
   for (const b of bals ?? []) stock[b.product_id] = Number(b.quantity);
   const branchAccounts = (accounts ?? []).filter((a) => !a.branch_id || a.branch_id === ctx.branchId);
   const walkIn = (customers ?? []).find((c) => c.is_protected);
+  const productOpts = (products ?? []).map((p) => {
+    const r = p as unknown as { category: { name: string } | null; brand: { name: string } | null };
+    return { ...p, category: r.category?.name ?? null, brand: r.brand?.name ?? null };
+  });
 
   return (
     <div>
       <PageHeader title="Create Sale" description="Fast sales entry. Totals and stock are validated on the server at posting." />
       <SaleForm
         branchId={ctx.branchId}
-        products={(products ?? []) as never}
+        products={productOpts as never}
         taxCodes={(taxCodes ?? []).map((t) => ({ ...t, rate: Number(t.rate) })) as never}
         accounts={branchAccounts as never}
         customers={(customers ?? []) as never}
